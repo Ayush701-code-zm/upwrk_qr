@@ -4,6 +4,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import authRoutes from "./src/routes/authRoutes.js";
+import protectedRoutes from "./src/routes/protectedRoutes.js";
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +29,8 @@ app.get("/api", (req, res) => {
 
 // Use authRoutes
 app.use("/api/auth", authRoutes);
+
+app.use("/api/protected", protectedRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

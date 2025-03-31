@@ -3,8 +3,9 @@
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { Lock, Mail, Eye, EyeOff, AlertCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useAuth } from "@/components/AuthProvider";
+import apiClient from "@/lib/apiClient";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
@@ -12,7 +13,7 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const router = useRouter();
+  const { login } = useAuth();
 
   // Animation variants
   const containerVariants = {
@@ -45,31 +46,23 @@ const LoginPage = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password }),
-          credentials: "include",
-        }
-      );
+      const response = await apiClient.post("/api/auth/login", {
+        email,
+        password,
+      });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
+      if (response.data && response.data.token) {
+        // Use the login function from AuthProvider
+        login(response.data.user, response.data.token);
+      } else {
+        throw new Error("No token received from server");
       }
-
-      // Store user data in localStorage or state management solution
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      // Redirect to dashboard or home page
-      router.push("/admin");
     } catch (err) {
-      setError(err.message || "An error occurred during sign in");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "An error occurred during sign in"
+      );
       console.error("Login error:", err);
     } finally {
       setLoading(false);

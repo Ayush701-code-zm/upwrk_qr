@@ -2,13 +2,13 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
-import axios from "axios";
 import { Lock, Mail, User, Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
-import { useRouter } from "next/navigation"; // Import from next/navigation instead of next/router
+import { useRouter } from "next/navigation";
+import apiClient from "@/lib/apiClient";
 
 const SignupPage = () => {
-  const router = useRouter(); // Initialize the router
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -47,14 +47,11 @@ const SignupPage = () => {
     }
 
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/sign-up`,
-        {
-          email: formData.email,
-          password: formData.password,
-          name: formData.name,
-        }
-      );
+      const response = await apiClient.post("/api/auth/sign-up", {
+        email: formData.email,
+        password: formData.password,
+        name: formData.name,
+      });
 
       setSuccess("Signup successful! Redirecting to login page...");
       // Reset form data
@@ -65,7 +62,7 @@ const SignupPage = () => {
         confirmPassword: "",
       });
 
-      // Redirect to sign-in page after a short delay (to show the success message)
+      // Redirect to sign-in page after a short delay
       setTimeout(() => {
         router.push("/sign-in");
       }, 1500);
