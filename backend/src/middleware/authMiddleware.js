@@ -1,37 +1,44 @@
-import { supabase } from "../config/supabaseClient.js";
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const authMiddleware = async (req, res, next) => {
+  // Get token from authorization header
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
     return res.status(401).json({ message: "No token provided" });
   }
 
-  const token = authHeader.split(" ")[1];
+  // Check if token follows the Bearer scheme
+  const parts = authHeader.split(" ");
+  if (parts.length !== 2 || parts[0] !== "Bearer") {
+    return res.status(401).json({ message: "Token error" });
+  }
+
+  const token = parts[1];
 
   try {
-    const { data, error } = await supabase.auth.getUser(token);
+    // Verify token
+    const decoded = jwt.verify(token, JWT_SECRET);
 
-    if (error || !data?.user) {
-      return res.status(401).json({ message: "Invalid or expired token" });
-    }
-
-    // Ensure user email exists
-    if (!data.user.email) {
-      return res.status(401).json({ message: "User email is missing" });
-    }
-
-    // Attach user to request
+    // Attach user info to request
     req.user = {
-      id: data.user.id,
-      email: data.user.email,
-      user_metadata: data.user.user_metadata,
+      id: decoded.id,
+      email: decoded.email,
+      name: decoded.name,
     };
 
     next();
   } catch (error) {
-    console.error("Auth error:", error);
-    return res.status(401).json({ message: "Authentication failed" });
+    console.error("JWT verification error:", error);
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Token expired" });
+    }
+    return res.status(401).json({ message: "Invalid token" });
   }
 };
 

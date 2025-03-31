@@ -2,12 +2,17 @@
 
 import { motion } from "framer-motion";
 import { useState } from "react";
-import { Lock, Mail, Eye, EyeOff } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const router = useRouter();
 
   // Animation variants
   const containerVariants = {
@@ -34,10 +39,41 @@ const LoginPage = () => {
     },
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Add login logic here
-    console.log("Login attempted", { email, password });
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email, password }),
+          credentials: "include",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Login failed");
+      }
+
+      // Store user data in localStorage or state management solution
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      // Redirect to dashboard or home page
+      router.push("/admin");
+    } catch (err) {
+      setError(err.message || "An error occurred during sign in");
+      console.error("Login error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,15 +84,13 @@ const LoginPage = () => {
         initial="hidden"
         animate="visible"
       >
-        {/* Image Section */}
-        <div className="hidden md:block bg-indigo-50">
-          <motion.img
-            src="/api/placeholder/600/800"
+        <div className="hidden md:block bg-indigo-50 relative h-full">
+          <Image
+            src="/logo.png"
             alt="Login Illustration"
-            className="w-full h-full object-cover"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+            fill
+            className="object-cover"
+            priority
           />
         </div>
 
@@ -72,6 +106,17 @@ const LoginPage = () => {
             Welcome Back
           </motion.h1>
 
+          {error && (
+            <motion.div
+              className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center text-red-600"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <AlertCircle size={18} className="mr-2 flex-shrink-0" />
+              <span className="text-sm">{error}</span>
+            </motion.div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <motion.div variants={itemVariants}>
               <div className="relative">
@@ -85,6 +130,7 @@ const LoginPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
+                  disabled={loading}
                 />
               </div>
             </motion.div>
@@ -101,11 +147,13 @@ const LoginPage = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  disabled={loading}
                 >
                   {showPassword ? (
                     <EyeOff className="text-gray-400" size={20} />
@@ -119,9 +167,14 @@ const LoginPage = () => {
             <motion.div variants={itemVariants}>
               <button
                 type="submit"
-                className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 transition-colors duration-300 text-lg font-semibold"
+                className={`w-full bg-indigo-600 text-white py-3 rounded-lg transition-colors duration-300 text-lg font-semibold ${
+                  loading
+                    ? "opacity-70 cursor-not-allowed"
+                    : "hover:bg-indigo-700"
+                }`}
+                disabled={loading}
               >
-                Sign In
+                {loading ? "Signing In..." : "Sign In"}
               </button>
             </motion.div>
           </form>
@@ -140,7 +193,7 @@ const LoginPage = () => {
             <p className="text-sm text-gray-600">
               Don't have an account?{" "}
               <a
-                href="/signup"
+                href="/sign-up"
                 className="text-indigo-600 hover:underline font-semibold"
               >
                 Sign Up

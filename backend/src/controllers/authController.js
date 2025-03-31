@@ -1,5 +1,25 @@
 import { supabase } from "../config/supabaseClient.js";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRATION = process.env.JWT_EXPIRATION;
+
+// Generate JWT token
+const generateToken = (user) => {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRATION }
+  );
+};
 
 // User Login
 export const loginUser = async (req, res) => {
@@ -30,7 +50,21 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    return res.status(200).json({ message: "Login successful", user: data });
+    // Generate JWT token
+    const token = generateToken(data);
+
+    // User data to return (exclude password)
+    const userData = {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+    };
+
+    return res.status(200).json({
+      message: "Login successful",
+      user: userData,
+      token: token,
+    });
   } catch (error) {
     console.error("Login error:", error);
     return res
@@ -50,7 +84,7 @@ export const registerUser = async (req, res) => {
     }
 
     // Check if email already exists
-    const { data: existingUser, error: checkError } = await supabase
+    const { data: existingUser } = await supabase
       .from("users")
       .select("id")
       .eq("email", email)
@@ -81,9 +115,20 @@ export const registerUser = async (req, res) => {
         .json({ message: "User creation failed, no data returned" });
     }
 
+    // Generate JWT token
+    const token = generateToken(data[0]);
+
+    // User data to return (exclude password)
+    const userData = {
+      id: data[0].id,
+      email: data[0].email,
+      name: data[0].name,
+    };
+
     return res.status(201).json({
       message: "User created successfully",
-      user: data[0], // Now data[0] should exist safely
+      user: userData,
+      token: token,
     });
   } catch (error) {
     console.error("Signup error:", error);
@@ -95,31 +140,17 @@ export const registerUser = async (req, res) => {
 
 // User Logout
 export const logoutUser = async (req, res) => {
-  try {
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      return res.status(400).json({
-        message: "Logout failed",
-        error: error.message,
-      });
-    }
-
-    return res.status(200).json({
-      message: "Logout successful",
-    });
-  } catch (error) {
-    console.error("Logout error:", error);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
+  // With JWT, we don't need to do anything server-side for logout
+  // The client should remove the token from storage
+  return res.status(200).json({
+    message: "Logout successful",
+  });
 };
 
 // Get Current User
 export const getCurrentUser = async (req, res) => {
   try {
+    // User is attached to req by the authMiddleware
     const user = req.user;
 
     if (!user) {
@@ -132,7 +163,7 @@ export const getCurrentUser = async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
-        name: user.user_metadata?.name,
+        name: user.name,
       },
     });
   } catch (error) {

@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { Home, Gift, User, Settings, LogOut } from "lucide-react";
 import LogoutModal from "./LogoutModal";
+import ProfileModal from "./ProfileModal"; // Import the ProfileModal component
 
 const menuItems = [
   {
@@ -35,9 +36,10 @@ const menuItems = [
       {
         icon: <User size={20} />,
         label: "Profile",
-        href: "/profile",
+        href: "#", // Changed from "/profile" to "#" to prevent navigation
         color: "#34D399",
         visible: ["admin", "teacher", "student", "parent"],
+        isProfile: true, // Add a flag to identify this as the profile item
       },
       {
         icon: <LogOut size={20} />,
@@ -54,6 +56,7 @@ const menuItems = [
 const Menu = () => {
   const [activeItem, setActiveItem] = useState(null);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false); // Add state for profile modal
 
   // Define animation variants for items
   const itemVariants = {
@@ -149,6 +152,41 @@ const Menu = () => {
                           }}
                         />
                       </div>
+                    ) : item.isProfile ? ( // Handle Profile item specifically
+                      <div
+                        onClick={() => setIsProfileModalOpen(true)} // Open profile modal on click
+                        className="flex items-center justify-center lg:justify-start gap-4 py-2 md:px-4 rounded-md transition-all duration-300 cursor-pointer"
+                        style={{
+                          backgroundColor:
+                            activeItem === item.label
+                              ? `${item.color}20`
+                              : "transparent",
+                          color:
+                            activeItem === item.label ? item.color : "gray",
+                        }}
+                      >
+                        <motion.div whileHover={{ scale: 1.2, rotate: 5 }}>
+                          {item.icon}
+                        </motion.div>
+                        <motion.span
+                          className="hidden lg:block font-medium"
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.3 }}
+                        >
+                          {item.label}
+                        </motion.span>
+
+                        <motion.div
+                          className="ml-auto hidden lg:block h-2 w-2 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                          initial={{ scale: 0 }}
+                          animate={{
+                            scale: activeItem === item.label ? 1 : 0,
+                            transition: { type: "spring" },
+                          }}
+                        />
+                      </div>
                     ) : (
                       <Link
                         href={item.href}
@@ -194,9 +232,14 @@ const Menu = () => {
         ))}
       </motion.div>
 
+      {/* Include both modals */}
       <LogoutModal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}
+      />
+      <ProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
       />
     </>
   );

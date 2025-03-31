@@ -68,16 +68,23 @@ const EventCalendar = () => {
     const styleElement = document.createElement("style");
     styleElement.innerHTML = `
       .react-calendar {
+        width: 100% !important;
+        max-width: none !important;
         background-color: var(--tw-bg-opacity, 1);
         border-color: #e5e7eb;
         border-radius: 0.375rem;
         box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-        margin-bottom: 1.5rem;
+        
+        padding: 0.75rem;
       }
       .dark .react-calendar {
         background-color: #1F2937;
         color: #E5E7EB;
         border-color: #374151;
+      }
+      .react-calendar__tile {
+        padding: 0.75em 0.5em;
+        height: auto;
       }
       .react-calendar__tile:hover {
         background-color: #e6e6e6;
@@ -88,6 +95,14 @@ const EventCalendar = () => {
       .react-calendar__tile--active {
         background-color: #4F46E5 !important;
         color: white;
+      }
+      .react-calendar__navigation {
+        height: 35px;
+        margin-bottom: 0.5rem;
+      }
+      .react-calendar__navigation button {
+        min-width: 35px;
+        background: none;
       }
       .react-calendar__navigation button:enabled:hover,
       .react-calendar__navigation button:enabled:focus {
@@ -109,6 +124,18 @@ const EventCalendar = () => {
       .dark .react-calendar__month-view__days__day--neighboringMonth {
         color: #6B7280;
       }
+      .react-calendar__month-view__weekdays {
+        text-align: center;
+        text-transform: uppercase;
+        font-weight: bold;
+        font-size: 0.8em;
+      }
+      .react-calendar__month-view__weekdays__weekday {
+        padding: 0.5rem;
+      }
+      .react-calendar__month-view__weekdays__weekday abbr {
+        text-decoration: none;
+      }
     `;
 
     document.head.appendChild(styleElement);
@@ -120,19 +147,20 @@ const EventCalendar = () => {
 
   return (
     <motion.div
-      className="p-6"
+      className="p-6 w-full"
       initial="hidden"
       animate="visible"
       variants={containerVariants}
     >
       <motion.div
-        whileHover={{ scale: 1.02 }}
+        className="w-full rounded-lg overflow-hidden shadow-md border border-gray-200 dark:border-gray-700"
+        whileHover={{ scale: 1.01 }}
         transition={{ type: "spring", stiffness: 300 }}
       >
-        <Calendar onChange={onChange} value={value} className="mb-6" />
+        <Calendar onChange={onChange} value={value} className="w-full" />
       </motion.div>
 
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between my-6">
         <motion.h1
           className="text-2xl font-bold text-indigo-700 dark:text-indigo-300"
           initial={{ x: -20, opacity: 0 }}
