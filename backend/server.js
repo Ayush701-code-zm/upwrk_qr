@@ -5,6 +5,7 @@ import morgan from "morgan";
 import dotenv from "dotenv";
 import authRoutes from "./src/routes/authRoutes.js";
 import protectedRoutes from "./src/routes/protectedRoutes.js";
+import couponRoutes from "./src/routes/couponRoutes.js";
 
 // Load environment variables
 dotenv.config();
@@ -30,7 +31,11 @@ app.get("/api", (req, res) => {
 // Use authRoutes
 app.use("/api/auth", authRoutes);
 
+// Protected routes
 app.use("/api/protected", protectedRoutes);
+
+// Coupon routes
+app.use("/api/coupons", couponRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
