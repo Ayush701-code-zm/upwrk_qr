@@ -1,54 +1,38 @@
-// backend/src/controllers/couponController.js
 import { supabase } from "../config/supabaseClient.js";
 
-// Get all coupons
+// Helper function for error responses
+const errorResponse = (res, status, message, error) => {
+  console.error(`${message} error:`, error);
+  return res.status(status).json({ message, error: error.message });
+};
+
+// Helper function to format a date
+const formatDate = (date) => new Date(date).toISOString();
+
 export const getAllCoupons = async (req, res) => {
   try {
-    // Get pagination parameters
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const startIndex = (page - 1) * limit;
-
-    // Get filter parameters
     const { isActive, type, search } = req.query;
 
-    // Start building the query
-    let query = supabase.from("coupons").select("*");
+    let query = supabase.from("coupons").select("*", { count: "exact" });
 
-    // Apply filters if provided
-    if (isActive !== undefined) {
+    if (isActive !== undefined)
       query = query.eq("is_active", isActive === "true");
-    }
+    if (type) query = query.eq("type", type);
+    if (search) query = query.ilike("code", `%${search}%`);
 
-    if (type) {
-      query = query.eq("type", type);
-    }
-
-    if (search) {
-      query = query.ilike("code", `%${search}%`);
-    }
-
-    // Get count for pagination
-    const { count: totalCount, error: countError } = await query.count();
-
-    if (countError) {
-      return res.status(400).json({
-        message: "Error counting coupons",
-        error: countError.message,
-      });
-    }
-
-    // Execute the query with pagination
-    const { data: coupons, error } = await query
+    const {
+      data: coupons,
+      error,
+      count: totalCount,
+    } = await query
       .order("created_at", { ascending: false })
       .range(startIndex, startIndex + limit - 1);
 
-    if (error) {
-      return res.status(400).json({
-        message: "Error retrieving coupons",
-        error: error.message,
-      });
-    }
+    if (error)
+      return errorResponse(res, 400, "Error retrieving coupons", error);
 
     return res.status(200).json({
       message: "Coupons retrieved successfully",
@@ -61,46 +45,30 @@ export const getAllCoupons = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get all coupons error:", error);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
+    return errorResponse(res, 500, "Internal server error", error);
   }
 };
 
-// Get a single coupon by ID
 export const getCouponById = async (req, res) => {
   try {
     const { id } = req.params;
-
     const { data: coupon, error } = await supabase
       .from("coupons")
       .select("*")
       .eq("id", id)
       .single();
 
-    if (error) {
-      return res.status(404).json({
-        message: "Coupon not found",
-        error: error.message,
-      });
-    }
+    if (error) return errorResponse(res, 404, "Coupon not found", error);
 
     return res.status(200).json({
       message: "Coupon retrieved successfully",
       data: coupon,
     });
   } catch (error) {
-    console.error("Get coupon by ID error:", error);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
+    return errorResponse(res, 500, "Internal server error", error);
   }
 };
 
-// Create a new coupon
 export const createCoupon = async (req, res) => {
   try {
     const {
@@ -112,12 +80,20 @@ export const createCoupon = async (req, res) => {
       validFrom,
       validUntil,
       usageLimit,
-      isActive,
+      isActive = true,
       appliesTo,
-      applicableIds,
+      applicableIds = [],
     } = req.body;
 
     // Validate required fields
+    const requiredFields = [
+      "code",
+      "type",
+      "value",
+      "validFrom",
+      "validUntil",
+      "appliesTo",
+    ];
     if (
       !code ||
       !type ||
@@ -128,19 +104,12 @@ export const createCoupon = async (req, res) => {
     ) {
       return res.status(400).json({
         message: "Missing required fields",
-        requiredFields: [
-          "code",
-          "type",
-          "value",
-          "validFrom",
-          "validUntil",
-          "appliesTo",
-        ],
+        requiredFields,
       });
     }
 
     // Check if coupon code already exists
-    const { data: existingCoupon, error: checkError } = await supabase
+    const { data: existingCoupon } = await supabase
       .from("coupons")
       .select("id")
       .eq("code", code)
@@ -162,38 +131,28 @@ export const createCoupon = async (req, res) => {
           value,
           min_purchase: minPurchase || null,
           max_discount: maxDiscount || null,
-          valid_from: new Date(validFrom).toISOString(),
-          valid_until: new Date(validUntil).toISOString(),
+          valid_from: formatDate(validFrom),
+          valid_until: formatDate(validUntil),
           usage_limit: usageLimit || null,
           usage_count: 0,
-          is_active: isActive !== undefined ? isActive : true,
+          is_active: isActive,
           applies_to: appliesTo,
-          applicable_ids: applicableIds || [],
+          applicable_ids: applicableIds,
         },
       ])
       .select();
 
-    if (error) {
-      return res.status(400).json({
-        message: "Error creating coupon",
-        error: error.message,
-      });
-    }
+    if (error) return errorResponse(res, 400, "Error creating coupon", error);
 
     return res.status(201).json({
       message: "Coupon created successfully",
       data: newCoupon[0],
     });
   } catch (error) {
-    console.error("Create coupon error:", error);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
+    return errorResponse(res, 500, "Internal server error", error);
   }
 };
 
-// Update a coupon
 export const updateCoupon = async (req, res) => {
   try {
     const { id } = req.params;
@@ -219,14 +178,12 @@ export const updateCoupon = async (req, res) => {
       .single();
 
     if (checkError) {
-      return res.status(404).json({
-        message: "Coupon not found",
-      });
+      return res.status(404).json({ message: "Coupon not found" });
     }
 
     // If code is changing, check if new code already exists
     if (code && code !== existingCoupon.code) {
-      const { data: codeExists, error: codeCheckError } = await supabase
+      const { data: codeExists } = await supabase
         .from("coupons")
         .select("id")
         .eq("code", code)
@@ -234,16 +191,12 @@ export const updateCoupon = async (req, res) => {
         .single();
 
       if (codeExists) {
-        return res.status(400).json({
-          message: "Coupon code already exists",
-        });
+        return res.status(400).json({ message: "Coupon code already exists" });
       }
     }
 
     // Prepare update data
-    const updateData = {
-      updated_at: new Date().toISOString(),
-    };
+    const updateData = { updated_at: new Date().toISOString() };
 
     if (code) updateData.code = code;
     if (type) updateData.type = type;
@@ -252,8 +205,8 @@ export const updateCoupon = async (req, res) => {
       updateData.min_purchase = minPurchase === null ? null : minPurchase;
     if (maxDiscount !== undefined)
       updateData.max_discount = maxDiscount === null ? null : maxDiscount;
-    if (validFrom) updateData.valid_from = new Date(validFrom).toISOString();
-    if (validUntil) updateData.valid_until = new Date(validUntil).toISOString();
+    if (validFrom) updateData.valid_from = formatDate(validFrom);
+    if (validUntil) updateData.valid_until = formatDate(validUntil);
     if (usageLimit !== undefined)
       updateData.usage_limit = usageLimit === null ? null : usageLimit;
     if (isActive !== undefined) updateData.is_active = isActive;
@@ -267,27 +220,17 @@ export const updateCoupon = async (req, res) => {
       .eq("id", id)
       .select();
 
-    if (error) {
-      return res.status(400).json({
-        message: "Error updating coupon",
-        error: error.message,
-      });
-    }
+    if (error) return errorResponse(res, 400, "Error updating coupon", error);
 
     return res.status(200).json({
       message: "Coupon updated successfully",
       data: updatedCoupon[0],
     });
   } catch (error) {
-    console.error("Update coupon error:", error);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
+    return errorResponse(res, 500, "Internal server error", error);
   }
 };
 
-// Delete a coupon
 export const deleteCoupon = async (req, res) => {
   try {
     const { id } = req.params;
@@ -300,43 +243,27 @@ export const deleteCoupon = async (req, res) => {
       .single();
 
     if (checkError) {
-      return res.status(404).json({
-        message: "Coupon not found",
-      });
+      return res.status(404).json({ message: "Coupon not found" });
     }
 
     // Delete coupon
     const { error } = await supabase.from("coupons").delete().eq("id", id);
 
-    if (error) {
-      return res.status(400).json({
-        message: "Error deleting coupon",
-        error: error.message,
-      });
-    }
+    if (error) return errorResponse(res, 400, "Error deleting coupon", error);
 
-    return res.status(200).json({
-      message: "Coupon deleted successfully",
-    });
+    return res.status(200).json({ message: "Coupon deleted successfully" });
   } catch (error) {
-    console.error("Delete coupon error:", error);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
+    return errorResponse(res, 500, "Internal server error", error);
   }
 };
 
-// Toggle coupon status (activate/deactivate)
 export const toggleCouponStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { isActive } = req.body;
 
     if (isActive === undefined) {
-      return res.status(400).json({
-        message: "isActive field is required",
-      });
+      return res.status(400).json({ message: "isActive field is required" });
     }
 
     // Update coupon status
@@ -349,27 +276,18 @@ export const toggleCouponStatus = async (req, res) => {
       .eq("id", id)
       .select();
 
-    if (error) {
-      return res.status(400).json({
-        message: "Error updating coupon status",
-        error: error.message,
-      });
-    }
+    if (error)
+      return errorResponse(res, 400, "Error updating coupon status", error);
 
     return res.status(200).json({
       message: `Coupon ${isActive ? "activated" : "deactivated"} successfully`,
       data: updatedCoupon[0],
     });
   } catch (error) {
-    console.error("Toggle coupon status error:", error);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
+    return errorResponse(res, 500, "Internal server error", error);
   }
 };
 
-// Validate a coupon
 export const validateCoupon = async (req, res) => {
   try {
     const { code } = req.params;
@@ -424,8 +342,6 @@ export const validateCoupon = async (req, res) => {
 
     // Check if applies to specific products or categories
     if (coupon.applies_to !== "all" && productIds.length > 0) {
-      // This is a simplification - in a real app, you'd check if product IDs match the applicable_ids
-      // or if products belong to applicable categories
       if (coupon.applicable_ids && coupon.applicable_ids.length > 0) {
         const hasMatch = productIds.some((id) =>
           coupon.applicable_ids.includes(id)
@@ -444,7 +360,6 @@ export const validateCoupon = async (req, res) => {
 
     if (coupon.type === "percentage") {
       discountAmount = (cartTotal * coupon.value) / 100;
-
       // Apply max discount if set
       if (
         coupon.max_discount !== null &&
@@ -454,9 +369,6 @@ export const validateCoupon = async (req, res) => {
       }
     } else if (coupon.type === "fixed") {
       discountAmount = Math.min(coupon.value, cartTotal);
-    } else if (coupon.type === "shipping") {
-      // For shipping, we'd need to know the shipping cost
-      discountAmount = 0; // This would be the shipping cost in a real app
     }
 
     return res.status(200).json({
@@ -477,10 +389,6 @@ export const validateCoupon = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Validate coupon error:", error);
-    return res.status(500).json({
-      message: "Internal server error",
-      error: error.message,
-    });
+    return errorResponse(res, 500, "Internal server error", error);
   }
 };

@@ -4,10 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import apiClient from "@/lib/apiClient";
+import { toast } from "react-hot-toast"; // Assuming you're using react-hot-toast for notifications
 
 export default function AddCouponPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const initialFormData = {
     code: "",
@@ -55,24 +58,30 @@ export default function AddCouponPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError("");
 
     try {
-      // Here you would make an API call to create the coupon
-      // const response = await fetch('/api/coupons', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData)
-      // });
+      // Format dates for API
+      const apiFormData = {
+        ...formData,
+        validFrom: formData.validFrom.toISOString(),
+        validUntil: formData.validUntil.toISOString(),
+      };
 
-      // if (!response.ok) throw new Error('Failed to create coupon');
+      // Call the API endpoint to create the coupon
+      const response = await apiClient.post("/api/coupons", apiFormData);
 
-      // Mock successful creation
-      console.log("Coupon created:", formData);
+      toast.success("Coupon created successfully!");
 
-      // Redirect to coupons list
+      // Redirect to coupons list page
       router.push("/coupons");
     } catch (error) {
       console.error("Error creating coupon:", error);
+      setError(
+        error.response?.data?.message ||
+          "Failed to create coupon. Please try again."
+      );
+      toast.error(error.response?.data?.message || "Failed to create coupon");
     } finally {
       setIsSubmitting(false);
     }
@@ -106,6 +115,12 @@ export default function AddCouponPage() {
         transition={{ duration: 0.5 }}
         className="bg-white shadow overflow-hidden sm:rounded-lg p-6"
       >
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="p-6">
           <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
             <div className="sm:col-span-3">

@@ -1,106 +1,147 @@
 // app/dashboard/coupons/page.js
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import DeleteModal from "./components/DeleteModal";
-import { Eye, Pencil, Trash2, Plus } from "lucide-react";
-
-// Mock data - replace with API call in the future
-const mockCoupons = [
-  {
-    id: "1",
-    code: "SUMMER25",
-    type: "percentage",
-    value: 25,
-    minPurchase: 100,
-    validFrom: new Date("2025-05-01"),
-    validUntil: new Date("2025-08-31"),
-    usageLimit: 1000,
-    usageCount: 243,
-    isActive: true,
-    appliesTo: "all",
-    createdAt: new Date("2025-04-15"),
-    updatedAt: new Date("2025-04-15"),
-  },
-  {
-    id: "2",
-    code: "FREESHIP",
-    type: "shipping",
-    value: 0,
-    minPurchase: 50,
-    validFrom: new Date("2025-01-01"),
-    validUntil: new Date("2025-12-31"),
-    usageCount: 512,
-    isActive: true,
-    appliesTo: "all",
-    createdAt: new Date("2024-12-15"),
-    updatedAt: new Date("2025-01-10"),
-  },
-  {
-    id: "3",
-    code: "WELCOME10",
-    type: "percentage",
-    value: 10,
-    minPurchase: 50,
-    validFrom: new Date("2025-05-01"),
-    validUntil: new Date("2025-08-31"),
-    usageLimit: 1000,
-    usageCount: 243,
-    isActive: true,
-    appliesTo: "all",
-    createdAt: new Date("2025-04-15"),
-    updatedAt: new Date("2025-04-15"),
-  },
-  {
-    id: "4",
-    code: "FALL15",
-    type: "percentage",
-    value: 15,
-    minPurchase: 100,
-    validFrom: new Date("2025-09-01"),
-    validUntil: new Date("2025-11-30"),
-    usageLimit: 1000,
-    usageCount: 45,
-    isActive: true,
-    appliesTo: "all",
-    createdAt: new Date("2025-04-15"),
-    updatedAt: new Date("2025-04-15"),
-  },
-  {
-    id: "5",
-    code: "HOLIDAY20",
-    type: "percentage",
-    value: 20,
-    minPurchase: 150,
-    validFrom: new Date("2025-12-01"),
-    validUntil: new Date("2025-12-31"),
-    usageLimit: 500,
-    usageCount: 0,
-    isActive: false,
-    appliesTo: "all",
-    createdAt: new Date("2025-04-15"),
-    updatedAt: new Date("2025-04-15"),
-  },
-];
+import {
+  Eye,
+  Pencil,
+  Trash2,
+  Plus,
+  AlertCircle,
+  Loader2,
+  Search,
+  Filter,
+} from "lucide-react";
+import apiClient from "@/lib/apiClient";
 
 export default function CouponsPage() {
-  const [coupons, setCoupons] = useState(mockCoupons);
+  const [coupons, setCoupons] = useState([]);
   const [deleteId, setDeleteId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 1,
+  });
+  const [filters, setFilters] = useState({
+    isActive: undefined,
+    type: "",
+    search: "",
+  });
 
-  const handleDelete = (id) => {
-    // Here you would make an API call to delete the coupon
-    setCoupons(coupons.filter((coupon) => coupon.id !== id));
-    setDeleteId(null);
+  // Fetch coupons from the API
+  const fetchCoupons = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Build query params
+      const params = new URLSearchParams({
+        page: pagination.page,
+        limit: pagination.limit,
+      });
+
+      // Add filters if they exist
+      if (filters.isActive !== undefined) {
+        params.append("isActive", filters.isActive);
+      }
+      if (filters.type) {
+        params.append("type", filters.type);
+      }
+      if (filters.search) {
+        params.append("search", filters.search);
+      }
+
+      const response = await apiClient.get(`/api/coupons?${params.toString()}`);
+      setCoupons(response.data.data);
+      setPagination({
+        page: response.data.pagination.page,
+        limit: response.data.pagination.limit,
+        total: response.data.pagination.total,
+        pages: response.data.pagination.pages,
+      });
+    } catch (err) {
+      console.error("Error fetching coupons:", err);
+      setError("Failed to load coupons. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString();
+  // Fetch coupons on initial load and when pagination or filters change
+  useEffect(() => {
+    fetchCoupons();
+  }, [pagination.page, pagination.limit, filters]);
+
+  // Handle page navigation
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= pagination.pages) {
+      setPagination((prev) => ({ ...prev, page: newPage }));
+    }
+  };
+
+  // Handle delete coupon
+  const handleDelete = async (id) => {
+    try {
+      setDeleteLoading(true);
+      // Add a timeout to ensure the delete modal displays the loading state
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const response = await apiClient.delete(`/api/coupons/${id}`);
+
+      // Check if the response is successful
+      if (response.status >= 200 && response.status < 300) {
+        // Wait for the delete operation to complete before refreshing
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Refresh the coupons list after deletion
+        await fetchCoupons();
+        setDeleteId(null);
+      } else {
+        throw new Error(`Server responded with status code ${response.status}`);
+      }
+    } catch (err) {
+      console.error("Error deleting coupon:", err);
+      setError("Failed to delete coupon. Please try again.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  // Format date from ISO string
+  const formatDate = (dateStr) => {
+    return new Date(dateStr).toLocaleDateString();
+  };
+
+  // Handle filter changes with debouncing for search
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setFilters((prev) => ({ ...prev, search: value }));
+    // We'll let the Enter key press handle the actual search
+  };
+
+  // Handle search submission
+  const handleSearchSubmit = () => {
+    setPagination((prev) => ({ ...prev, page: 1 })); // Reset to first page on search
+  };
+
+  // Reset all filters
+  const resetFilters = () => {
+    setFilters({
+      isActive: undefined,
+      type: "",
+      search: "",
+    });
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8 min-h-full bg-white transition-colors duration-200">
+    <div className="px-4 sm:px-6 lg:px-8 py-8 h-auto bg-white w-full transition-colors duration-200">
       <div className="sm:flex sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Coupons</h1>
@@ -120,156 +161,335 @@ export default function CouponsPage() {
         </Link>
       </div>
 
-      <div className="mt-8 flex flex-col">
-        <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-            <div className="overflow-hidden shadow-md rounded-lg border border-gray-200">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th
-                      scope="col"
-                      className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
-                    >
-                      Code
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Type
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Value
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Valid Until
-                    </th>
-                    <th
-                      scope="col"
-                      className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                    >
-                      Status
-                    </th>
-                    <th
-                      scope="col"
-                      className="relative py-3.5 pl-3 pr-4 sm:pr-6 text-right"
-                    >
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {coupons.map((coupon, index) => (
-                    <motion.tr
-                      key={coupon.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                      className="hover:bg-gray-50 transition-colors duration-150"
-                    >
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                        <span className="font-mono bg-gray-100 px-2 py-1 rounded">
-                          {coupon.code}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600">
-                        <span className="capitalize">{coupon.type}</span>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600">
-                        {coupon.type === "percentage" ? (
-                          <span className="text-amber-600 font-medium">
-                            {coupon.value}%
-                          </span>
-                        ) : coupon.type === "fixed" ? (
-                          <span className="text-emerald-600 font-medium">
-                            ${coupon.value}
-                          </span>
-                        ) : coupon.type === "shipping" ? (
-                          <span className="text-blue-600 font-medium">
-                            Free Shipping
-                          </span>
-                        ) : (
-                          <span className="text-purple-600 font-medium">
-                            Buy X Get {coupon.value}
-                          </span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600">
-                        {formatDate(coupon.validUntil)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-4 text-sm">
-                        <span
-                          className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                            coupon.isActive
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }`}
-                        >
-                          {coupon.isActive ? "Active" : "Inactive"}
-                        </span>
-                      </td>
-                      <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                        <div className="flex justify-end space-x-2">
-                          <Link
-                            href={`/coupons/${coupon.id}`}
-                            className="p-1.5 bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
-                            title="View"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                          <Link
-                            href={`/coupons/${coupon.id}/edit`}
-                            className="p-1.5 bg-amber-50 text-amber-600 rounded-md hover:bg-amber-100 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
-                            title="Edit"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Link>
-                          <button
-                            onClick={() => setDeleteId(coupon.id)}
-                            className="p-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
-                            title="Delete"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
+      {/* Improved Filter controls */}
+      <div className="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-medium text-gray-700 flex items-center">
+            <Filter className="h-4 w-4 mr-2" />
+            Filter Coupons
+          </h3>
+          {(filters.isActive !== undefined ||
+            filters.type ||
+            filters.search) && (
+            <button
+              onClick={resetFilters}
+              className="text-xs text-indigo-600 hover:text-indigo-800 transition-colors"
+            >
+              Clear Filters
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Status Filter */}
+          <div>
+            <label
+              htmlFor="statusFilter"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Status
+            </label>
+            <select
+              id="statusFilter"
+              className="block w-full h-8 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              value={
+                filters.isActive === undefined
+                  ? ""
+                  : filters.isActive.toString()
+              }
+              onChange={(e) => {
+                const value = e.target.value;
+                setFilters((prev) => ({
+                  ...prev,
+                  isActive: value === "" ? undefined : value === "true",
+                }));
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+            >
+              <option value="">All Status</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
+
+          {/* Type Filter */}
+          <div>
+            <label
+              htmlFor="typeFilter"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Type
+            </label>
+            <select
+              id="typeFilter"
+              className="block w-full h-8 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+              value={filters.type}
+              onChange={(e) => {
+                setFilters((prev) => ({ ...prev, type: e.target.value }));
+                setPagination((prev) => ({ ...prev, page: 1 }));
+              }}
+            >
+              <option value="">All Types</option>
+              <option value="percentage">Percentage</option>
+              <option value="fixed">Fixed</option>
+              <option value="shipping">Shipping</option>
+            </select>
+          </div>
+
+          {/* Search Filter */}
+          <div>
+            <label
+              htmlFor="searchFilter"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
+              Search
+            </label>
+            <div className="relative rounded-md shadow-sm">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                id="searchFilter"
+                className="block w-full h-8 pl-10 rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                placeholder="Search by code"
+                value={filters.search}
+                onChange={handleSearchChange}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    handleSearchSubmit();
+                  }
+                }}
+              />
+              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                <button
+                  onClick={handleSearchSubmit}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <span className="sr-only">Search</span>
+                  {/* Use a small search button */}
+                  <svg
+                    className="h-4 w-4"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Pagination (Optional) */}
-      <div className="mt-6 flex items-center justify-between">
-        <div className="text-sm text-gray-500">
-          Showing <span className="font-medium">1</span> to{" "}
-          <span className="font-medium">{coupons.length}</span> of{" "}
-          <span className="font-medium">{coupons.length}</span> coupons
-        </div>
-        <div className="flex space-x-2">
-          <button className="px-3 py-1.5 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-            Previous
+      {/* Error display */}
+      {error && (
+        <div className="mt-4 p-4 bg-red-50 rounded-md border border-red-200 flex items-center text-red-700">
+          <AlertCircle className="h-5 w-5 mr-2" />
+          <span>{error}</span>
+          <button
+            onClick={() => setError(null)}
+            className="ml-auto text-red-700 hover:text-red-900"
+          >
+            <span className="sr-only">Dismiss</span>
+            <svg
+              className="h-5 w-5"
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
           </button>
-          <button className="px-3 py-1.5 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-            Next
-          </button>
         </div>
-      </div>
+      )}
 
+      {/* Loading state */}
+      {loading ? (
+        <div className="mt-8 flex justify-center items-center p-12">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          <span className="ml-2 text-gray-600">Loading coupons...</span>
+        </div>
+      ) : (
+        <div className="mt-6 flex flex-col">
+          <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+            <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+              <div className="overflow-hidden shadow-md rounded-lg border border-gray-200">
+                {coupons.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    No coupons found. Create a new coupon to get started.
+                  </div>
+                ) : (
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th
+                          scope="col"
+                          className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+                        >
+                          Code
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Type
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Value
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Valid Until
+                        </th>
+                        <th
+                          scope="col"
+                          className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                        >
+                          Status
+                        </th>
+                        <th
+                          scope="col"
+                          className="relative py-3.5 pl-3 pr-4 sm:pr-6 text-right"
+                        >
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {coupons.map((coupon, index) => (
+                        <motion.tr
+                          key={coupon.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: 0.3, delay: index * 0.05 }}
+                          className="hover:bg-gray-50 transition-colors duration-150"
+                        >
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                            <span className="font-mono bg-gray-100 px-2 py-1 rounded">
+                              {coupon.code}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600">
+                            <span className="capitalize">{coupon.type}</span>
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600">
+                            {coupon.type === "percentage" ? (
+                              <span className="text-amber-600 font-medium">
+                                {coupon.value}%
+                              </span>
+                            ) : coupon.type === "fixed" ? (
+                              <span className="text-emerald-600 font-medium">
+                                ${coupon.value}
+                              </span>
+                            ) : coupon.type === "shipping" ? (
+                              <span className="text-blue-600 font-medium">
+                                Free Shipping
+                              </span>
+                            ) : (
+                              <span className="text-purple-600 font-medium">
+                                Buy X Get {coupon.value}
+                              </span>
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-600">
+                            {formatDate(coupon.valid_until)}
+                          </td>
+                          <td className="whitespace-nowrap px-3 py-4 text-sm">
+                            <span
+                              className={`px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                                coupon.is_active
+                                  ? "bg-green-100 text-green-800"
+                                  : "bg-red-100 text-red-800"
+                              }`}
+                            >
+                              {coupon.is_active ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                          <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                            <div className="flex justify-end space-x-2">
+                              <Link
+                                href={`/coupons/${coupon.id}/edit`}
+                                className="p-1.5 bg-amber-50 text-amber-600 rounded-md hover:bg-amber-100 transition-colors focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-1"
+                                title="Edit"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                              <button
+                                onClick={() => setDeleteId(coupon.id)}
+                                className="p-1.5 bg-red-50 text-red-600 rounded-md hover:bg-red-100 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {!loading && coupons.length > 0 && (
+        <div className="mt-6 flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            Showing{" "}
+            <span className="font-medium">
+              {(pagination.page - 1) * pagination.limit + 1}
+            </span>{" "}
+            to{" "}
+            <span className="font-medium">
+              {Math.min(pagination.page * pagination.limit, pagination.total)}
+            </span>{" "}
+            of <span className="font-medium">{pagination.total}</span> coupons
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page === 1}
+              className="px-3 py-1.5 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={pagination.page === pagination.pages}
+              className="px-3 py-1.5 border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Improved Delete Modal handling */}
       {deleteId && (
         <DeleteModal
           onDelete={() => handleDelete(deleteId)}
           onCancel={() => setDeleteId(null)}
+          isLoading={deleteLoading}
         />
       )}
     </div>
