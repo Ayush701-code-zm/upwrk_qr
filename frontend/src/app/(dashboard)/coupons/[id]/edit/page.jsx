@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import apiClient from "@/lib/apiClient";
+import { toast } from "react-hot-toast";
 
 export default function EditCouponPage({ params }) {
   const router = useRouter();
@@ -54,6 +55,22 @@ export default function EditCouponPage({ params }) {
     fetchCoupon();
   }, [id]);
 
+  // Convert date string in MM/DD/YYYY format to a Date object
+  const parseAmericanDate = (dateString) => {
+    if (!dateString) return new Date();
+    const [month, day, year] = dateString.split("/");
+    return new Date(year, month - 1, day);
+  };
+
+  // Format date to MM/DD/YYYY string
+  const formatDateToAmerican = (date) => {
+    const d = new Date(date);
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
+
   const handleChange = (e) => {
     if (!formData) return;
 
@@ -67,12 +84,13 @@ export default function EditCouponPage({ params }) {
     } else if (type === "number") {
       setFormData((prev) => ({
         ...prev,
-        [name]: value === "" ? null : Number(value),
+        [name]: value === "" ? undefined : Number(value),
       }));
-    } else if (type === "date") {
+    } else if (name === "validFrom" || name === "validUntil") {
+      // Handle date inputs in MM/DD/YYYY format
       setFormData((prev) => ({
         ...prev,
-        [name]: new Date(value),
+        [name]: parseAmericanDate(value),
       }));
     } else {
       setFormData((prev) => ({
@@ -108,10 +126,10 @@ export default function EditCouponPage({ params }) {
       // Send update request to API
       const response = await apiClient.put(`/api/coupons/${id}`, apiData);
 
-      // Show success notification or toast here if needed
+      toast.success("Coupon updated successfully!");
 
       // Redirect to coupon details or list page
-      router.push(`/coupons/${id}`);
+      router.push(`/coupons`);
     } catch (err) {
       console.error("Error updating coupon:", err);
 
@@ -120,6 +138,7 @@ export default function EditCouponPage({ params }) {
         err.response?.data?.message ||
         "Failed to update coupon. Please try again.";
       setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
@@ -186,46 +205,16 @@ export default function EditCouponPage({ params }) {
             <span className="font-medium">{formData?.code}</span>
           </p>
         </div>
-        <div className="mt-4 sm:mt-0 flex space-x-3">
-          <Link href={`/coupons/${id}`}>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Cancel
-            </motion.button>
-          </Link>
-        </div>
+        <Link href="/coupons">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Back to List
+          </motion.button>
+        </Link>
       </div>
-
-      {error && (
-        <div className="mb-6 bg-red-50 border-l-4 border-red-400 p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg
-                className="h-5 w-5 text-red-400"
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Error</h3>
-              <div className="mt-1 text-sm text-red-700">
-                <p>{error}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -233,6 +222,12 @@ export default function EditCouponPage({ params }) {
         transition={{ duration: 0.5 }}
         className="bg-white shadow overflow-hidden sm:rounded-lg p-6"
       >
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-red-600">{error}</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="p-6">
           <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
             <div className="sm:col-span-3">
@@ -264,19 +259,14 @@ export default function EditCouponPage({ params }) {
                 Coupon Type
               </label>
               <div>
-                <select
+                <input
+                  type="text"
                   id="type"
-                  name="type"
-                  required
-                  value={formData?.type || ""}
-                  onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
-                >
-                  <option value="percentage">Percentage</option>
-                  <option value="fixed">Fixed Amount</option>
-                  <option value="shipping">Free Shipping</option>
-                  <option value="buyXgetY">Buy X Get Y</option>
-                </select>
+                  value="Percentage Discount"
+                  readOnly
+                  className="shadow-sm bg-gray-50 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                />
+                <input type="hidden" name="type" value="percentage" />
               </div>
             </div>
 
@@ -285,13 +275,7 @@ export default function EditCouponPage({ params }) {
                 htmlFor="value"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                {formData?.type === "percentage"
-                  ? "Discount Percentage"
-                  : formData?.type === "fixed"
-                  ? "Discount Amount"
-                  : formData?.type === "shipping"
-                  ? "Shipping Discount"
-                  : "Get Y Free"}
+                Discount Percentage
               </label>
               <div>
                 <input
@@ -300,7 +284,8 @@ export default function EditCouponPage({ params }) {
                   id="value"
                   required
                   min={0}
-                  value={formData?.value || ""}
+                  max={100}
+                  value={formData?.value || 0}
                   onChange={handleChange}
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
                 />
@@ -356,16 +341,17 @@ export default function EditCouponPage({ params }) {
               </label>
               <div>
                 <input
-                  type="date"
+                  type="text"
                   name="validFrom"
                   id="validFrom"
                   required
                   value={
                     formData?.validFrom
-                      ? formData.validFrom.toISOString().split("T")[0]
+                      ? formatDateToAmerican(formData.validFrom)
                       : ""
                   }
                   onChange={handleChange}
+                  placeholder="MM/DD/YYYY"
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
                 />
               </div>
@@ -380,16 +366,17 @@ export default function EditCouponPage({ params }) {
               </label>
               <div>
                 <input
-                  type="date"
+                  type="text"
                   name="validUntil"
                   id="validUntil"
                   required
                   value={
                     formData?.validUntil
-                      ? formData.validUntil.toISOString().split("T")[0]
+                      ? formatDateToAmerican(formData.validUntil)
                       : ""
                   }
                   onChange={handleChange}
+                  placeholder="MM/DD/YYYY"
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
                 />
               </div>
@@ -432,8 +419,6 @@ export default function EditCouponPage({ params }) {
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
                 >
                   <option value="all">All Products</option>
-                  <option value="categories">Specific Categories</option>
-                  <option value="products">Specific Products</option>
                 </select>
               </div>
             </div>
@@ -459,7 +444,7 @@ export default function EditCouponPage({ params }) {
           </div>
 
           <div className="mt-8 flex justify-end space-x-4">
-            <Link href={`/coupons/${id}`}>
+            <Link href="/coupons">
               <button
                 type="button"
                 className="py-3 px-6 border-2 border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import apiClient from "@/lib/apiClient";
-import { toast } from "react-hot-toast"; // Assuming you're using react-hot-toast for notifications
+import { toast } from "react-hot-toast";
 
 export default function AddCouponPage() {
   const router = useRouter();
@@ -14,7 +14,7 @@ export default function AddCouponPage() {
 
   const initialFormData = {
     code: "",
-    type: "percentage",
+    type: "percentage", // Fixed to percentage only
     value: 0,
     minPurchase: undefined,
     maxDiscount: undefined,
@@ -27,6 +27,22 @@ export default function AddCouponPage() {
   };
 
   const [formData, setFormData] = useState(initialFormData);
+
+  // Convert date string in MM/DD/YYYY format to a Date object
+  const parseAmericanDate = (dateString) => {
+    if (!dateString) return new Date();
+    const [month, day, year] = dateString.split("/");
+    return new Date(year, month - 1, day);
+  };
+
+  // Format date to MM/DD/YYYY string
+  const formatDateToAmerican = (date) => {
+    const d = new Date(date);
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
@@ -42,10 +58,11 @@ export default function AddCouponPage() {
         ...prev,
         [name]: value === "" ? undefined : Number(value),
       }));
-    } else if (type === "date") {
+    } else if (name === "validFrom" || name === "validUntil") {
+      // Handle date inputs in MM/DD/YYYY format
       setFormData((prev) => ({
         ...prev,
-        [name]: new Date(value),
+        [name]: parseAmericanDate(value),
       }));
     } else {
       setFormData((prev) => ({
@@ -95,7 +112,7 @@ export default function AddCouponPage() {
             Add New Coupon
           </h1>
           <p className="mt-2 text-sm text-gray-700">
-            Create a new discount coupon for your customers
+            Create a new percentage discount coupon for your customers
           </p>
         </div>
         <Link href="/coupons">
@@ -152,19 +169,14 @@ export default function AddCouponPage() {
                 Coupon Type
               </label>
               <div>
-                <select
+                <input
+                  type="text"
                   id="type"
-                  name="type"
-                  required
-                  value={formData.type}
-                  onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
-                >
-                  <option value="percentage">Percentage</option>
-                  <option value="fixed">Fixed Amount</option>
-                  <option value="shipping">Free Shipping</option>
-                  <option value="buyXgetY">Buy X Get Y</option>
-                </select>
+                  value="Percentage Discount"
+                  readOnly
+                  className="shadow-sm bg-gray-50 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                />
+                <input type="hidden" name="type" value="percentage" />
               </div>
             </div>
 
@@ -173,13 +185,7 @@ export default function AddCouponPage() {
                 htmlFor="value"
                 className="block text-sm font-medium text-gray-700 mb-2"
               >
-                {formData.type === "percentage"
-                  ? "Discount Percentage"
-                  : formData.type === "fixed"
-                  ? "Discount Amount"
-                  : formData.type === "shipping"
-                  ? "Shipping Discount"
-                  : "Get Y Free"}
+                Discount Percentage
               </label>
               <div>
                 <input
@@ -188,6 +194,7 @@ export default function AddCouponPage() {
                   id="value"
                   required
                   min={0}
+                  max={100}
                   value={formData.value}
                   onChange={handleChange}
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
@@ -244,12 +251,13 @@ export default function AddCouponPage() {
               </label>
               <div>
                 <input
-                  type="date"
+                  type="text"
                   name="validFrom"
                   id="validFrom"
                   required
-                  value={formData.validFrom.toISOString().split("T")[0]}
+                  value={formatDateToAmerican(formData.validFrom)}
                   onChange={handleChange}
+                  placeholder="MM/DD/YYYY"
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
                 />
               </div>
@@ -264,12 +272,13 @@ export default function AddCouponPage() {
               </label>
               <div>
                 <input
-                  type="date"
+                  type="text"
                   name="validUntil"
                   id="validUntil"
                   required
-                  value={formData.validUntil.toISOString().split("T")[0]}
+                  value={formatDateToAmerican(formData.validUntil)}
                   onChange={handleChange}
+                  placeholder="MM/DD/YYYY"
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
                 />
               </div>
@@ -312,8 +321,6 @@ export default function AddCouponPage() {
                   className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
                 >
                   <option value="all">All Products</option>
-                  <option value="categories">Specific Categories</option>
-                  <option value="products">Specific Products</option>
                 </select>
               </div>
             </div>
