@@ -6,6 +6,8 @@ import dotenv from "dotenv";
 import authRoutes from "./src/routes/authRoutes.js";
 import protectedRoutes from "./src/routes/protectedRoutes.js";
 import couponRoutes from "./src/routes/couponRoutes.js";
+// Import validateCoupon directly
+import { validateCoupon } from "./src/controllers/couponController.js";
 
 // Load environment variables
 dotenv.config();
@@ -28,13 +30,16 @@ app.get("/api", (req, res) => {
   res.json({ message: "Backend is running successfully" });
 });
 
+// PUBLIC COUPON VALIDATION ENDPOINT - No auth required
+app.post("/api/validate-coupon/:code", validateCoupon);
+
 // Use authRoutes
 app.use("/api/auth", authRoutes);
 
 // Protected routes
 app.use("/api/protected", protectedRoutes);
 
-// Coupon routes
+// Protected coupon routes
 app.use("/api/coupons", couponRoutes);
 
 // Error handling middleware
@@ -50,4 +55,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
+  console.log(
+    `Public coupon validation available at: http://localhost:${PORT}/api/validate-coupon/:code`
+  );
 });

@@ -8,7 +8,6 @@ import {
   updateCoupon,
   deleteCoupon,
   toggleCouponStatus,
-  validateCoupon,
 } from "../controllers/couponController.js";
 
 const router = express.Router();
@@ -23,10 +22,5 @@ router.post("/", createCoupon);
 router.put("/:id", updateCoupon);
 router.delete("/:id", deleteCoupon);
 router.patch("/:id/toggle", toggleCouponStatus);
-
-// Public route - for validating coupons during checkout
-// Note: This would typically be behind auth as well, but here we're exposing it
-// for testing purposes
-router.post("/validate/:code", validateCoupon);
 
 export default router;
