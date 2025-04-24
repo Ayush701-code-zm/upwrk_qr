@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import apiClient from "@/lib/apiClient";
 import { toast } from "react-hot-toast";
+import { Moon, Sun } from "lucide-react";
 
 export default function AddCouponPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [darkMode, setDarkMode] = useState(true);
 
   const initialFormData = {
     code: "",
@@ -27,6 +29,26 @@ export default function AddCouponPage() {
   };
 
   const [formData, setFormData] = useState(initialFormData);
+
+  useEffect(() => {
+    // Check for user preference in localStorage or system preference
+    const savedTheme = localStorage.getItem("theme");
+    if (savedTheme) {
+      setDarkMode(savedTheme === "dark");
+    } else {
+      // Check system preference
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
+      setDarkMode(prefersDark);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const newMode = !darkMode;
+    setDarkMode(newMode);
+    localStorage.setItem("theme", newMode ? "dark" : "light");
+  };
 
   // Convert date string in MM/DD/YYYY format to a Date object
   const parseAmericanDate = (dateString) => {
@@ -104,37 +126,78 @@ export default function AddCouponPage() {
     }
   };
 
+  // Dynamic classNames based on theme
+  const pageClass = darkMode
+    ? "bg-gray-900 text-gray-200"
+    : "bg-gray-100 text-gray-800";
+  const cardClass = darkMode ? "bg-gray-800 shadow" : "bg-white shadow";
+  const headingClass = darkMode ? "text-gray-100" : "text-gray-900";
+  const subTextClass = darkMode ? "text-gray-400" : "text-gray-500";
+  const inputClass = darkMode
+    ? "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-600 rounded-md p-3 bg-gray-700 text-gray-200 placeholder-gray-500"
+    : "shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3 bg-white text-gray-700 placeholder-gray-400";
+  const readOnlyClass = darkMode
+    ? "shadow-sm bg-gray-600 block w-full text-base border-2 border-gray-600 rounded-md p-3 text-gray-300"
+    : "shadow-sm bg-gray-200 block w-full text-base border-2 border-gray-300 rounded-md p-3 text-gray-600";
+  const checkboxBgClass = darkMode ? "bg-gray-700" : "bg-gray-100";
+  const checkboxLabelClass = darkMode ? "text-gray-200" : "text-gray-700";
+  const buttonPrimaryClass =
+    "inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed";
+  const buttonSecondaryClass = darkMode
+    ? "py-3 px-6 border-2 border-gray-600 rounded-md shadow-sm text-base font-medium text-gray-300 bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+    : "py-3 px-6 border-2 border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500";
+  const errorBgClass = darkMode
+    ? "bg-red-900 border-red-700"
+    : "bg-red-100 border-red-300";
+  const errorTextClass = darkMode ? "text-red-300" : "text-red-700";
+  const themeButtonClass = darkMode
+    ? "p-2 rounded-full bg-gray-700 text-yellow-400 hover:bg-gray-600"
+    : "p-2 rounded-full bg-gray-200 text-indigo-600 hover:bg-gray-300";
+
   return (
-    <div className="px-4 sm:px-6 lg:px-8 py-8 bg-white">
+    <div
+      className={`px-4 sm:px-6 lg:px-8 py-8 ${pageClass} transition-colors duration-200`}
+    >
       <div className="sm:flex sm:items-center sm:justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
+          <h1 className={`text-2xl font-semibold ${headingClass}`}>
             Add New Coupon
           </h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <p className={`mt-2 text-sm ${subTextClass}`}>
             Create a new percentage discount coupon for your customers
           </p>
         </div>
-        <Link href="/coupons">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+        <div className="flex items-center space-x-4 mt-4 sm:mt-0">
+          {/* <button
+            onClick={toggleTheme}
+            className={themeButtonClass}
+            aria-label={
+              darkMode ? "Switch to light mode" : "Switch to dark mode"
+            }
           >
-            Back to List
-          </motion.button>
-        </Link>
+            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button> */}
+          <Link href="/coupons">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={buttonSecondaryClass}
+            >
+              Back to List
+            </motion.button>
+          </Link>
+        </div>
       </div>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="bg-white shadow overflow-hidden sm:rounded-lg p-6"
+        className={`${cardClass} overflow-hidden sm:rounded-lg p-6`}
       >
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-            <p className="text-red-600">{error}</p>
+          <div className={`mb-4 p-4 ${errorBgClass} border rounded-md`}>
+            <p className={errorTextClass}>{error}</p>
           </div>
         )}
 
@@ -143,7 +206,9 @@ export default function AddCouponPage() {
             <div className="sm:col-span-3">
               <label
                 htmlFor="code"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
               >
                 Coupon Code
               </label>
@@ -155,7 +220,7 @@ export default function AddCouponPage() {
                   required
                   value={formData.code}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                  className={inputClass}
                   placeholder="SUMMER25"
                 />
               </div>
@@ -164,7 +229,9 @@ export default function AddCouponPage() {
             <div className="sm:col-span-3">
               <label
                 htmlFor="type"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
               >
                 Coupon Type
               </label>
@@ -174,7 +241,7 @@ export default function AddCouponPage() {
                   id="type"
                   value="Percentage Discount"
                   readOnly
-                  className="shadow-sm bg-gray-50 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                  className={readOnlyClass}
                 />
                 <input type="hidden" name="type" value="percentage" />
               </div>
@@ -183,7 +250,9 @@ export default function AddCouponPage() {
             <div className="sm:col-span-2">
               <label
                 htmlFor="value"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
               >
                 Discount Percentage
               </label>
@@ -197,7 +266,7 @@ export default function AddCouponPage() {
                   max={100}
                   value={formData.value}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                  className={inputClass}
                 />
               </div>
             </div>
@@ -205,7 +274,9 @@ export default function AddCouponPage() {
             <div className="sm:col-span-2">
               <label
                 htmlFor="minPurchase"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
               >
                 Minimum Purchase
               </label>
@@ -217,7 +288,7 @@ export default function AddCouponPage() {
                   min={0}
                   value={formData.minPurchase || ""}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                  className={inputClass}
                 />
               </div>
             </div>
@@ -225,7 +296,9 @@ export default function AddCouponPage() {
             <div className="sm:col-span-2">
               <label
                 htmlFor="maxDiscount"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
               >
                 Maximum Discount
               </label>
@@ -237,7 +310,7 @@ export default function AddCouponPage() {
                   min={0}
                   value={formData.maxDiscount || ""}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                  className={inputClass}
                 />
               </div>
             </div>
@@ -245,7 +318,9 @@ export default function AddCouponPage() {
             <div className="sm:col-span-3">
               <label
                 htmlFor="validFrom"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
               >
                 Valid From
               </label>
@@ -258,7 +333,7 @@ export default function AddCouponPage() {
                   value={formatDateToAmerican(formData.validFrom)}
                   onChange={handleChange}
                   placeholder="MM/DD/YYYY"
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                  className={inputClass}
                 />
               </div>
             </div>
@@ -266,7 +341,9 @@ export default function AddCouponPage() {
             <div className="sm:col-span-3">
               <label
                 htmlFor="validUntil"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
               >
                 Valid Until
               </label>
@@ -279,7 +356,7 @@ export default function AddCouponPage() {
                   value={formatDateToAmerican(formData.validUntil)}
                   onChange={handleChange}
                   placeholder="MM/DD/YYYY"
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                  className={inputClass}
                 />
               </div>
             </div>
@@ -287,7 +364,9 @@ export default function AddCouponPage() {
             <div className="sm:col-span-3">
               <label
                 htmlFor="usageLimit"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
               >
                 Usage Limit
               </label>
@@ -299,7 +378,7 @@ export default function AddCouponPage() {
                   min={0}
                   value={formData.usageLimit || ""}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                  className={inputClass}
                 />
               </div>
             </div>
@@ -307,7 +386,9 @@ export default function AddCouponPage() {
             <div className="sm:col-span-3">
               <label
                 htmlFor="appliesTo"
-                className="block text-sm font-medium text-gray-700 mb-2"
+                className={`block text-sm font-medium ${
+                  darkMode ? "text-gray-300" : "text-gray-700"
+                } mb-2`}
               >
                 Applies To
               </label>
@@ -318,7 +399,7 @@ export default function AddCouponPage() {
                   required
                   value={formData.appliesTo}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full text-base border-2 border-gray-300 rounded-md p-3"
+                  className={inputClass}
                 >
                   <option value="all">All Products</option>
                 </select>
@@ -326,18 +407,20 @@ export default function AddCouponPage() {
             </div>
 
             <div className="sm:col-span-6">
-              <div className="flex items-center p-4 bg-gray-50 rounded-lg">
+              <div
+                className={`flex items-center p-4 ${checkboxBgClass} rounded-lg`}
+              >
                 <input
                   id="isActive"
                   name="isActive"
                   type="checkbox"
                   checked={formData.isActive}
                   onChange={handleChange}
-                  className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                  className="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-500 rounded"
                 />
                 <label
                   htmlFor="isActive"
-                  className="ml-3 block text-base font-medium text-gray-900"
+                  className={`ml-3 block text-base font-medium ${checkboxLabelClass}`}
                 >
                   Active
                 </label>
@@ -347,10 +430,7 @@ export default function AddCouponPage() {
 
           <div className="mt-8 flex justify-end space-x-4">
             <Link href="/coupons">
-              <button
-                type="button"
-                className="py-3 px-6 border-2 border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
+              <button type="button" className={buttonSecondaryClass}>
                 Cancel
               </button>
             </Link>
@@ -359,7 +439,7 @@ export default function AddCouponPage() {
               disabled={isSubmitting}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={buttonPrimaryClass}
             >
               {isSubmitting ? "Processing..." : "Create Coupon"}
             </motion.button>
